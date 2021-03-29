@@ -36,6 +36,7 @@ import ConnectWalletCard from 'sections/exchange/FooterCard/ConnectWalletCard';
 import TxConfirmationModal from 'sections/shared/modals/TxConfirmationModal';
 import { TxProvider } from 'sections/shared/modals/TxConfirmationModal/TxConfirmationModal';
 import SelectCurrencyModal from 'sections/shared/modals/SelectCurrencyModal';
+import SelectTokenModal from 'sections/shared/modals/SelectTokenModal';
 import BalancerTradeModal from 'sections/shared/modals/BalancerTradeModal';
 
 import useSelectedPriceCurrency from 'hooks/useSelectedPriceCurrency';
@@ -69,7 +70,8 @@ type ExchangeCardProps = {
 	footerCardAttached?: boolean;
 	routingEnabled?: boolean;
 	persistSelectedCurrencies?: boolean;
-	allowCurrencySelection?: boolean;
+	allowQuoteCurrencySelection?: boolean;
+	allowBaseCurrencySelection?: boolean;
 	showNoSynthsCard?: boolean;
 	txProvider?: TxProvider;
 };
@@ -82,7 +84,8 @@ const useExchange = ({
 	footerCardAttached = false,
 	routingEnabled = false,
 	persistSelectedCurrencies = false,
-	allowCurrencySelection = true,
+	allowQuoteCurrencySelection = true,
+	allowBaseCurrencySelection = true,
 	showNoSynthsCard = true,
 	txProvider = 'synthetix',
 }: ExchangeCardProps) => {
@@ -107,19 +110,24 @@ const useExchange = ({
 	const isWalletConnected = useRecoilValue(isWalletConnectedState);
 	const walletAddress = useRecoilValue(walletAddressState);
 	const [txConfirmationModalOpen, setTxConfirmationModalOpen] = useState<boolean>(false);
-	const [selectBaseCurrencyModal, setSelectBaseCurrencyModal] = useState<boolean>(false);
-	const [selectQuoteCurrencyModalOpen, setSelectQuoteCurrencyModalOpen] = useState<boolean>(false);
 	const [txError, setTxError] = useState<string | null>(null);
+	const [selectBaseCurrencyModalOpen, setSelectBaseCurrencyModalOpen] = useState<boolean>(false);
+	const [selectQuoteCurrencyModalOpen, setSelectQuoteCurrencyModalOpen] = useState<boolean>(false);
 	const [selectBalancerTradeModal, setSelectBalancerTradeModal] = useState<boolean>(false);
+	const [selectQuoteTokenModalOpen, setSelectQuoteTokenModalOpen] = useState<boolean>(false);
+	const [selectBaseTokenModalOpen, setSelectBaseTokenModalOpen] = useState<boolean>(false);
 	const setOrders = useSetRecoilState(ordersState);
 	const setHasOrdersNotification = useSetRecoilState(hasOrdersNotificationState);
 	const gasSpeed = useRecoilValue(gasSpeedState);
 	const customGasPrice = useRecoilValue(customGasPriceState);
 	const { selectPriceCurrencyRate, selectedPriceCurrency } = useSelectedPriceCurrency();
 	const slippage = useRecoilValue(slippageState);
-	const cmcQuotesQuery = useCMCQuotesQuery([SYNTHS_MAP.sUSD, CRYPTO_CURRENCY_MAP.ETH], {
-		enabled: txProvider === '1inch',
-	});
+	const cmcQuotesQuery = useCMCQuotesQuery(
+		[SYNTHS_MAP.sUSD, CRYPTO_CURRENCY_MAP.ETH, 'SNX', 'AAVE'],
+		{
+			enabled: txProvider === '1inch',
+		}
+	);
 
 	const [gasLimit, setGasLimit] = useState<number | null>(null);
 
@@ -150,40 +158,23 @@ const useExchange = ({
 		}
 	);
 
-	const isBaseCurrencyETH = useMemo(() => baseCurrencyKey === CRYPTO_CURRENCY_MAP.ETH, [
-		baseCurrencyKey,
-	]);
-	const isQuoteCurrencyETH = useMemo(() => quoteCurrencyKey === CRYPTO_CURRENCY_MAP.ETH, [
-		quoteCurrencyKey,
-	]);
+	const isBaseCurrencyETH = baseCurrencyKey === CRYPTO_CURRENCY_MAP.ETH;
+	const isQuoteCurrencyETH = quoteCurrencyKey === CRYPTO_CURRENCY_MAP.ETH;
 
-	const exchangeFeeRate = useMemo(
-		() => (exchangeFeeRateQuery.isSuccess ? exchangeFeeRateQuery.data ?? null : null),
-		[exchangeFeeRateQuery.isSuccess, exchangeFeeRateQuery.data]
-	);
+	const exchangeFeeRate = exchangeFeeRateQuery.isSuccess ? exchangeFeeRateQuery.data ?? null : null;
 
-	const feeReclaimPeriodInSeconds = useMemo(
-		() => (feeReclaimPeriodQuery.isSuccess ? feeReclaimPeriodQuery.data ?? 0 : 0),
-		[feeReclaimPeriodQuery.isSuccess, feeReclaimPeriodQuery.data]
-	);
+	const feeReclaimPeriodInSeconds = feeReclaimPeriodQuery.isSuccess
+		? feeReclaimPeriodQuery.data ?? 0
+		: 0;
 
-	const baseCurrency = useMemo(
-		() =>
-			baseCurrencyKey != null && synthetix.synthsMap != null
-				? synthetix.synthsMap[baseCurrencyKey]
-				: null,
-		[baseCurrencyKey]
-	);
+	const baseCurrency =
+		baseCurrencyKey != null && synthetix.synthsMap != null
+			? synthetix.synthsMap[baseCurrencyKey]
+			: null;
 
-	const exchangeRates = useMemo(
-		() => (exchangeRatesQuery.isSuccess ? exchangeRatesQuery.data ?? null : null),
-		[exchangeRatesQuery.isSuccess, exchangeRatesQuery.data]
-	);
+	const exchangeRates = exchangeRatesQuery.isSuccess ? exchangeRatesQuery.data ?? null : null;
 
-	const cmcQuotes = useMemo(() => (cmcQuotesQuery.isSuccess ? cmcQuotesQuery.data ?? null : null), [
-		cmcQuotesQuery.isSuccess,
-		cmcQuotesQuery.data,
-	]);
+	const cmcQuotes = cmcQuotesQuery.isSuccess ? cmcQuotesQuery.data ?? null : null;
 
 	const rate = useMemo(
 		() => getExchangeRatesForCurrencies(exchangeRates, quoteCurrencyKey, baseCurrencyKey),
@@ -238,7 +229,10 @@ const useExchange = ({
 	const basePriceRate = useMemo(
 		() =>
 			txProvider === '1inch'
-				? cmcQuotes != null && baseCurrencyKey != null && selectPriceCurrencyRate != null
+				? cmcQuotes != null &&
+				  baseCurrencyKey != null &&
+				  selectPriceCurrencyRate != null &&
+				  cmcQuotes[baseCurrencyKey] != null
 					? cmcQuotes[baseCurrencyKey].price / selectPriceCurrencyRate
 					: 0
 				: getExchangeRatesForCurrencies(exchangeRates, baseCurrencyKey, selectedPriceCurrency.name),
@@ -255,7 +249,10 @@ const useExchange = ({
 	const quotePriceRate = useMemo(
 		() =>
 			txProvider === '1inch'
-				? cmcQuotes != null && quoteCurrencyKey != null && selectPriceCurrencyRate != null
+				? cmcQuotes != null &&
+				  quoteCurrencyKey != null &&
+				  selectPriceCurrencyRate != null &&
+				  cmcQuotes[quoteCurrencyKey] != null
 					? cmcQuotes[quoteCurrencyKey].price / selectPriceCurrencyRate
 					: 0
 				: getExchangeRatesForCurrencies(
@@ -300,10 +297,7 @@ const useExchange = ({
 		return tradePrice;
 	}, [baseCurrencyAmountBN, basePriceRate, selectPriceCurrencyRate]);
 
-	const selectedBothSides = useMemo(() => baseCurrencyKey != null && quoteCurrencyKey != null, [
-		baseCurrencyKey,
-		quoteCurrencyKey,
-	]);
+	const selectedBothSides = baseCurrencyKey != null && quoteCurrencyKey != null;
 
 	const baseCurrencyMarketClosed = useMarketClosed(baseCurrencyKey);
 	const quoteCurrencyMarketClosed = useMarketClosed(quoteCurrencyKey);
@@ -619,7 +613,12 @@ const useExchange = ({
 				}
 			}}
 			onCurrencySelect={
-				allowCurrencySelection ? () => setSelectQuoteCurrencyModalOpen(true) : undefined
+				allowQuoteCurrencySelection
+					? () =>
+							txProvider === '1inch'
+								? setSelectQuoteTokenModalOpen(true)
+								: setSelectQuoteCurrencyModalOpen(true)
+					: undefined
 			}
 			priceRate={quotePriceRate}
 			label={t('exchange.common.from')}
@@ -683,7 +682,14 @@ const useExchange = ({
 					}
 				}
 			}}
-			onCurrencySelect={allowCurrencySelection ? () => setSelectBaseCurrencyModal(true) : undefined}
+			onCurrencySelect={
+				allowBaseCurrencySelection
+					? () =>
+							txProvider === '1inch'
+								? setSelectBaseTokenModalOpen(true)
+								: setSelectBaseCurrencyModalOpen(true)
+					: undefined
+			}
 			priceRate={basePriceRate}
 			label={t('exchange.common.into')}
 			interactive={txProvider === 'synthetix'}
@@ -760,9 +766,9 @@ const useExchange = ({
 					icon={<Svg src={ArrowsIcon} />}
 				/>
 			)}
-			{selectBaseCurrencyModal && (
+			{selectBaseCurrencyModalOpen && (
 				<SelectCurrencyModal
-					onDismiss={() => setSelectBaseCurrencyModal(false)}
+					onDismiss={() => setSelectBaseCurrencyModalOpen(false)}
 					onSelect={(currencyKey) => {
 						resetCurrencies();
 						// @ts-ignore
@@ -793,6 +799,43 @@ const useExchange = ({
 						}));
 						if (currencyPair.base && currencyPair.base !== currencyKey) {
 							routeToMarketPair(currencyPair.base, currencyKey);
+						}
+					}}
+				/>
+			)}
+			{selectQuoteTokenModalOpen && (
+				<SelectTokenModal
+					onDismiss={() => setSelectQuoteTokenModalOpen(false)}
+					onSelect={(currencyKey) => {
+						resetCurrencies();
+						// @ts-ignore
+						setCurrencyPair((pair) => ({
+							base: pair.base === currencyKey ? null : pair.base,
+							quote: currencyKey,
+						}));
+						if (currencyPair.base && currencyPair.base !== currencyKey) {
+							routeToMarketPair(currencyPair.base, currencyKey);
+						}
+					}}
+				/>
+			)}
+			{selectBaseTokenModalOpen && (
+				<SelectTokenModal
+					onDismiss={() => setSelectBaseTokenModalOpen(false)}
+					onSelect={(currencyKey) => {
+						resetCurrencies();
+						// @ts-ignore
+						setCurrencyPair((pair) => ({
+							base: currencyKey,
+							quote: pair.quote === currencyKey ? null : pair.quote,
+						}));
+
+						if (currencyPair.quote != null) {
+							if (currencyPair.quote !== currencyKey) {
+								routeToMarketPair(currencyKey, currencyPair.quote);
+							}
+						} else {
+							routeToBaseCurrency(currencyKey);
 						}
 					}}
 				/>

@@ -15,80 +15,74 @@ import useDebouncedMemo from 'hooks/useDebouncedMemo';
 
 import { FlexDivCentered, BottomShadow } from 'styles/common';
 
-import { CurrencyKey, CATEGORY_MAP } from 'constants/currency';
+import { CurrencyKey } from 'constants/currency';
 import { DEFAULT_SEARCH_DEBOUNCE_MS } from 'constants/defaults';
 
 import { RowsHeader, RowsContainer, CenteredModal } from '../common';
 
-import SynthRow from './SynthRow';
+import TokenRow from './TokenRow';
+import use1InchTokenList from 'queries/tokenLists/use1InchTokenList';
 
-export const CATEGORY_FILTERS = [
-	CATEGORY_MAP.crypto,
-	CATEGORY_MAP.forex,
-	CATEGORY_MAP.equities,
-	CATEGORY_MAP.commodity,
-];
-
-type SelectCurrencyModalProps = {
+type SelectTokenModalProps = {
 	onDismiss: () => void;
 	onSelect: (currencyKey: CurrencyKey) => void;
 };
 
-export const SelectCurrencyModal: FC<SelectCurrencyModalProps> = ({ onDismiss, onSelect }) => {
+export const SelectTokenModal: FC<SelectTokenModalProps> = ({ onDismiss, onSelect }) => {
 	const { t } = useTranslation();
 	const [assetSearch, setAssetSearch] = useState<string>('');
-	const [synthCategory, setSynthCategory] = useState<string | null>(null);
 
-	// eslint-disable-next-line
-	const synths = synthetix.js?.synths ?? [];
+	const OneInchTokenListQuery = use1InchTokenList();
+	const OneInchTokenList = OneInchTokenListQuery.isSuccess
+		? OneInchTokenListQuery.data?.tokens ?? []
+		: [];
 
-	const synthsWalletBalancesQuery = useSynthsBalancesQuery();
-	const synthBalances = synthsWalletBalancesQuery.isSuccess
-		? synthsWalletBalancesQuery.data ?? null
+	const tokensWalletBalancesQuery = useSynthsBalancesQuery();
+	const synthBalances = tokensWalletBalancesQuery.isSuccess
+		? tokensWalletBalancesQuery.data ?? null
 		: null;
 
-	const categoryFilteredSynths = useMemo(
-		() =>
-			synthCategory != null ? synths.filter((synth) => synth.category === synthCategory) : synths,
-		[synths, synthCategory]
-	);
+	const isLoading = OneInchTokenListQuery.isLoading || tokensWalletBalancesQuery.isLoading;
 
 	const searchFilteredSynths = useDebouncedMemo(
 		() =>
 			assetSearch
-				? categoryFilteredSynths.filter(({ name, description }) => {
-						const assetSearchLC = assetSearch.toLowerCase();
+				? OneInchTokenList.filter(({ name, symbol, address }) => {
+						const assetSearchQueryLC = assetSearch.toLowerCase();
 
 						return (
-							name.toLowerCase().includes(assetSearchLC) ||
-							description.toLowerCase().includes(assetSearchLC)
+							name.toLowerCase().includes(assetSearchQueryLC) ||
+							symbol.toLowerCase().includes(assetSearchQueryLC) ||
+							address.toLowerCase() === assetSearchQueryLC
 						);
 				  })
-				: categoryFilteredSynths,
-		[categoryFilteredSynths, assetSearch],
+				: OneInchTokenList,
+		[OneInchTokenList, assetSearch],
 		DEFAULT_SEARCH_DEBOUNCE_MS
 	);
 
-	const synthsResults = useMemo(() => {
-		const synthsList = assetSearch ? searchFilteredSynths : categoryFilteredSynths;
-		if (synthsWalletBalancesQuery.isSuccess) {
-			return orderBy(
-				synthsList,
-				(synth) => {
-					const synthBalance = synthBalances?.balancesMap[synth.name];
-					return synthBalance != null ? synthBalance.usdBalance.toNumber() : 0;
-				},
-				'desc'
-			);
-		}
-		return synthsList;
-	}, [
-		assetSearch,
-		searchFilteredSynths,
-		categoryFilteredSynths,
-		synthsWalletBalancesQuery.isSuccess,
-		synthBalances,
-	]);
+	const tokensResults = searchFilteredSynths;
+
+	// const tokensResults = useMemo(() => {
+	// 	const synthsList = assetSearch ? searchFilteredSynths : categoryFilteredSynths;
+	// 	if (tokensWalletBalancesQuery.isSuccess) {
+	// 		return orderBy(
+	// 			synthsList,
+	// 			(synth) => {
+	// 				const synthBalance = synthBalances?.balancesMap[synth.name];
+	// 				return synthBalance != null ? synthBalance.usdBalance.toNumber() : 0;
+	// 			},
+	// 			'desc'
+	// 		);
+	// 	}
+	// 	return synthsList;
+	// }, [
+	// 	assetSearch,
+	// 	searchFilteredSynths,
+	// 	categoryFilteredSynths,
+	// 	tokensWalletBalancesQuery.isSuccess,
+	// 	synthBalances,
+	// ]);
 
 	return (
 		<StyledCenteredModal
@@ -100,40 +94,16 @@ export const SelectCurrencyModal: FC<SelectCurrencyModalProps> = ({ onDismiss, o
 				<AssetSearchInput
 					placeholder={t('modals.select-base-currency.search.placeholder')}
 					onChange={(e) => {
-						setSynthCategory(null);
 						setAssetSearch(e.target.value);
 					}}
 					value={assetSearch}
 					autoFocus={true}
 				/>
 			</SearchContainer>
-			<CategoryFilters>
-				{CATEGORY_FILTERS.map((category) => {
-					const isActive = synthCategory === category;
-
-					return (
-						<CategoryButton
-							variant="secondary"
-							isActive={isActive}
-							onClick={() => {
-								setAssetSearch('');
-								setSynthCategory(isActive ? null : category);
-							}}
-							key={category}
-						>
-							{t(`common.currency-category.${category}`)}
-						</CategoryButton>
-					);
-				})}
-			</CategoryFilters>
 			<RowsHeader>
 				<span>
 					{assetSearch ? (
 						<span>{t('modals.select-base-currency.header.search-results')}</span>
-					) : synthCategory != null ? (
-						t('modals.select-base-currency.header.category-synths', {
-							category: synthCategory,
-						})
 					) : (
 						t('modals.select-base-currency.header.all-synths')
 					)}
@@ -141,21 +111,21 @@ export const SelectCurrencyModal: FC<SelectCurrencyModalProps> = ({ onDismiss, o
 				<span>{t('modals.select-base-currency.header.holdings')}</span>
 			</RowsHeader>
 			<RowsContainer>
-				{synthsWalletBalancesQuery.isLoading ? (
+				{isLoading ? (
 					<Loader />
-				) : synthsResults.length > 0 ? (
-					synthsResults.map((synth) => {
-						const currencyKey = synth.name;
+				) : tokensResults.length > 0 ? (
+					tokensResults.map((token) => {
+						const currencyKey = token.symbol;
 
 						return (
-							<SynthRow
+							<TokenRow
 								key={currencyKey}
 								onClick={() => {
 									onSelect(currencyKey);
 									onDismiss();
 								}}
-								synthBalance={synthBalances?.balancesMap[currencyKey]}
-								{...{ synth }}
+								// tokenBalance={synthBalances?.balancesMap[currencyKey]}
+								token={token}
 							/>
 						);
 					})
@@ -198,18 +168,6 @@ const AssetSearchInput = styled(SearchInput)`
 	}
 `;
 
-const CategoryFilters = styled.div`
-	display: grid;
-	grid-auto-flow: column;
-	justify-content: space-between;
-	padding: 0 16px;
-	margin-bottom: 18px;
-`;
-
-const CategoryButton = styled(Button)`
-	text-transform: uppercase;
-`;
-
 const EmptyDisplay = styled(FlexDivCentered)`
 	justify-content: center;
 	font-size: 14px;
@@ -220,4 +178,4 @@ const EmptyDisplay = styled(FlexDivCentered)`
 	color: ${(props) => props.theme.colors.white};
 `;
 
-export default SelectCurrencyModal;
+export default SelectTokenModal;
