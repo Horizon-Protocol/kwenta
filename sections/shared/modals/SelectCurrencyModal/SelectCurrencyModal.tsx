@@ -94,11 +94,11 @@ export const SelectCurrencyModal: FC<SelectCurrencyModalProps> = ({ onDismiss, o
 		<StyledCenteredModal
 			onDismiss={onDismiss}
 			isOpen={true}
-			title={t('modals.select-base-currency.title')}
+			title={t('modals.select-currency.title')}
 		>
 			<SearchContainer>
 				<AssetSearchInput
-					placeholder={t('modals.select-base-currency.search.placeholder')}
+					placeholder={t('modals.select-currency.search.placeholder')}
 					onChange={(e) => {
 						setSynthCategory(null);
 						setAssetSearch(e.target.value);
@@ -129,16 +129,16 @@ export const SelectCurrencyModal: FC<SelectCurrencyModalProps> = ({ onDismiss, o
 			<RowsHeader>
 				<span>
 					{assetSearch ? (
-						<span>{t('modals.select-base-currency.header.search-results')}</span>
+						<span>{t('modals.select-currency.header.search-results')}</span>
 					) : synthCategory != null ? (
-						t('modals.select-base-currency.header.category-synths', {
+						t('modals.select-currency.header.category-synths', {
 							category: synthCategory,
 						})
 					) : (
-						t('modals.select-base-currency.header.all-synths')
+						t('modals.select-currency.header.all-synths')
 					)}
 				</span>
-				<span>{t('modals.select-base-currency.header.holdings')}</span>
+				<span>{t('modals.select-currency.header.holdings')}</span>
 			</RowsHeader>
 			<RowsContainer>
 				{synthsWalletBalancesQuery.isLoading ? (
@@ -160,7 +160,7 @@ export const SelectCurrencyModal: FC<SelectCurrencyModalProps> = ({ onDismiss, o
 						);
 					})
 				) : (
-					<EmptyDisplay>{t('modals.select-base-currency.search.empty-results')}</EmptyDisplay>
+					<EmptyDisplay>{t('modals.select-currency.search.empty-results')}</EmptyDisplay>
 				)}
 			</RowsContainer>
 			<StyledBottomShadow />

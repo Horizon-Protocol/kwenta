@@ -21,8 +21,8 @@ type TokenRowProps = {
 	tokenBalance?: Record<CurrencyKey, string>;
 };
 const TokenRow: FC<TokenRowProps> = ({ token, onClick, tokenBalance }) => {
-	const { selectPriceCurrencyRate, selectedPriceCurrency } = useSelectedPriceCurrency();
-	const isWalletConnected = useRecoilValue(isWalletConnectedState);
+	// const { selectPriceCurrencyRate, selectedPriceCurrency } = useSelectedPriceCurrency();
+	// const isWalletConnected = useRecoilValue(isWalletConnectedState);
 
 	const currencyKey = token.symbol;
 
@@ -34,7 +34,7 @@ const TokenRow: FC<TokenRowProps> = ({ token, onClick, tokenBalance }) => {
 				iconProps={{ type: 'token' }}
 				{...{ currencyKey }}
 			/>
-			{isWalletConnected ? (
+			{/* {isWalletConnected ? (
 				<Currency.Amount
 					amount={tokenBalance?.balance ?? 0}
 					totalValue={tokenBalance?.usdBalance ?? 0}
@@ -44,7 +44,7 @@ const TokenRow: FC<TokenRowProps> = ({ token, onClick, tokenBalance }) => {
 				/>
 			) : (
 				NO_VALUE
-			)}
+			)} */}
 		</StyledSelectableCurrencyRow>
 	);
 };

@@ -1,7 +1,9 @@
-import { FC, useMemo, useState } from 'react';
+import { ComponentType, FC, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import styled from 'styled-components';
 import orderBy from 'lodash/orderBy';
+import { FixedSizeList, ListChildComponentProps } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
 
 import synthetix from 'lib/synthetix';
 
@@ -84,6 +86,25 @@ export const SelectTokenModal: FC<SelectTokenModalProps> = ({ onDismiss, onSelec
 	// 	synthBalances,
 	// ]);
 
+	const renderRow: ComponentType<ListChildComponentProps> = ({ index, style }) => {
+		const token = tokensResults[index];
+		const currencyKey = token.symbol;
+
+		return (
+			<div key={currencyKey} style={style}>
+				<TokenRow
+					key={currencyKey}
+					onClick={() => {
+						onSelect(currencyKey);
+						onDismiss();
+					}}
+					// tokenBalance={synthBalances?.balancesMap[currencyKey]}
+					token={token}
+				/>
+			</div>
+		);
+	};
+
 	return (
 		<StyledCenteredModal
 			onDismiss={onDismiss}
@@ -110,25 +131,22 @@ export const SelectTokenModal: FC<SelectTokenModalProps> = ({ onDismiss, onSelec
 				</span>
 				<span>{t('modals.select-base-currency.header.holdings')}</span>
 			</RowsHeader>
-			<RowsContainer>
+			<RowsContainer style={{ height: '100%' }}>
 				{isLoading ? (
 					<Loader />
 				) : tokensResults.length > 0 ? (
-					tokensResults.map((token) => {
-						const currencyKey = token.symbol;
-
-						return (
-							<TokenRow
-								key={currencyKey}
-								onClick={() => {
-									onSelect(currencyKey);
-									onDismiss();
-								}}
-								// tokenBalance={synthBalances?.balancesMap[currencyKey]}
-								token={token}
-							/>
-						);
-					})
+					<AutoSizer>
+						{({ height, width }) => (
+							<FixedSizeList
+								height={height}
+								itemCount={tokensResults.length}
+								itemSize={48}
+								width={width}
+							>
+								{renderRow}
+							</FixedSizeList>
+						)}
+					</AutoSizer>
 				) : (
 					<EmptyDisplay>{t('modals.select-base-currency.search.empty-results')}</EmptyDisplay>
 				)}

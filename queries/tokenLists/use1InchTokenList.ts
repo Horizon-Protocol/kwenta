@@ -11,7 +11,7 @@ const use1InchTokenList = (options?: QueryConfig<TokenListQueryResponse>) => {
 		QUERY_KEYS.TokenLists.OneInch,
 		async () => {
 			const response = await axios.get<TokenListResponse>('https://tokens.1inch.eth.link');
-
+			console.log(response);
 			return {
 				tokens: response.data.tokens,
 				tokensMap: keyBy(response.data.tokens, 'symbol'),
@@ -20,6 +20,7 @@ const use1InchTokenList = (options?: QueryConfig<TokenListQueryResponse>) => {
 		{
 			refetchInterval: false,
 			refetchOnWindowFocus: false,
+			refetchOnMount: false,
 			...options,
 		}
 	);
